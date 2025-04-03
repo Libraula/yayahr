@@ -12,8 +12,9 @@ import {
   UserCheck,
   UserPlus,
 } from "lucide-react"
-import { getDashboardStats, getRecentActivities, fetchEmployees, fetchDepartments } from "@/lib/supabase"
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts"
+import { getDashboardStats, getRecentActivities, fetchEmployees, fetchDepartments, Employee, Department } from "@/lib/supabase"
+import { DepartmentPieChart } from "./dashboard-charts"
+import React from "react" // Import React for ReactNode type
 
 export default async function Dashboard() {
   try {
@@ -31,7 +32,15 @@ export default async function Dashboard() {
     })
 
     // Use a default empty array if getRecentActivities fails
-    let recentActivities = []
+    // Define a type for the activity object based on usage
+    type ActivityType = {
+      id: string;
+      type: string;
+      title: string;
+      description: string;
+      time: string;
+    }
+    let recentActivities: ActivityType[] = []
     try {
       recentActivities = await getRecentActivities()
     } catch (error) {
@@ -52,7 +61,6 @@ export default async function Dashboard() {
     const departmentData = processDepartmentData(employees, departments)
 
     // Process gender data for chart
-    const genderData = processGenderData(employees)
 
     return (
       <div className="flex flex-col gap-5">
@@ -94,36 +102,7 @@ export default async function Dashboard() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Card className="col-span-2">
-            <CardHeader>
-              <CardTitle>Employee Overview</CardTitle>
-              <CardDescription>Employee distribution by department</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={departmentData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={true}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {departmentData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${value} employees`, "Count"]} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+          <DepartmentPieChart data={departmentData} />
 
           <Card>
             <CardHeader>
@@ -167,7 +146,7 @@ export default async function Dashboard() {
             <h3 className="font-semibold mb-4">Recent Activities</h3>
             <div className="space-y-4">
               {recentActivities && recentActivities.length > 0 ? (
-                recentActivities.map((activity) => {
+                recentActivities.map((activity: ActivityType) => {
                   let icon
                   switch (activity.type) {
                     case "employee_added":
@@ -243,7 +222,7 @@ export default async function Dashboard() {
   }
 }
 
-function DashboardCard({ title, value, description, icon, trend, trendUp }) {
+function DashboardCard({ title, value, description, icon, trend, trendUp }: { title: string; value: string; description: string; icon: React.ReactNode; trend: string; trendUp: boolean }) {
   return (
     <Card>
       <CardContent className="p-6">
@@ -268,7 +247,7 @@ function DashboardCard({ title, value, description, icon, trend, trendUp }) {
   )
 }
 
-function Alert({ title, description, icon }) {
+function Alert({ title, description, icon }: { title: string; description: string; icon: React.ReactNode }) {
   return (
     <div className="flex items-start space-x-3 p-3 border rounded-md">
       <div className="rounded-full bg-muted p-1.5">{icon}</div>
@@ -280,7 +259,7 @@ function Alert({ title, description, icon }) {
   )
 }
 
-function Activity({ title, description, time, icon }) {
+function Activity({ title, description, time, icon }: { title: string; description: string; time: string; icon: React.ReactNode }) {
   return (
     <div className="flex items-start space-x-3">
       <div className="rounded-full bg-muted p-1.5 mt-0.5">{icon}</div>
@@ -293,7 +272,7 @@ function Activity({ title, description, time, icon }) {
   )
 }
 
-function QuickAction({ title, href }) {
+function QuickAction({ title, href }: { title: string; href: string }) {
   return (
     <Link
       href={href}
@@ -305,7 +284,7 @@ function QuickAction({ title, href }) {
 }
 
 // Helper function to format time ago
-function formatTimeAgo(dateString) {
+function formatTimeAgo(dateString: string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
@@ -341,19 +320,19 @@ function formatTimeAgo(dateString) {
 // Helper functions for data processing
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D", "#FFC658", "#8DD1E1"]
 
-function processDepartmentData(employees, departments) {
-  const departmentCounts = {}
+function processDepartmentData(employees: Employee[], departments: Department[]) {
+  const departmentCounts: { [key: string]: number } = {}
 
   // Initialize with all departments
-  departments.forEach((dept) => {
+  departments.forEach((dept: Department) => {
     departmentCounts[dept.name] = 0
   })
 
   // Count employees in each department
-  employees.forEach((emp) => {
+  employees.forEach((emp: Employee) => {
     if (emp.department_id) {
       // Find the department name from the department_id
-      const dept = departments.find((d) => d.id === emp.department_id)
+      const dept = departments.find((d: Department) => d.id === emp.department_id)
       if (dept && dept.name) {
         departmentCounts[dept.name] = (departmentCounts[dept.name] || 0) + 1
       }
@@ -362,25 +341,6 @@ function processDepartmentData(employees, departments) {
 
   // Convert to array format for chart
   return Object.entries(departmentCounts).map(([name, value]) => ({
-    name,
-    value,
-  }))
-}
-
-function processGenderData(employees) {
-  const genderCounts = {
-    Male: 0,
-    Female: 0,
-    Other: 0,
-  }
-
-  employees.forEach((emp) => {
-    if (emp.gender) {
-      genderCounts[emp.gender] = (genderCounts[emp.gender] || 0) + 1
-    }
-  })
-
-  return Object.entries(genderCounts).map(([name, value]) => ({
     name,
     value,
   }))
