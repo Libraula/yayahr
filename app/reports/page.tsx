@@ -2,22 +2,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts"
+import { Employee, Department, LeaveRequest } from "@/lib/supabase"
 import { Download, FileText, Filter } from "lucide-react"
+import {
+  DepartmentDistributionChart,
+  EmploymentTypeChart,
+  SalaryDistributionChart,
+  EmployeeTurnoverChart,
+  LeaveByTypeChart,
+  LeaveStatusChart,
+  PayrollTrendChart,
+} from "./report-charts"
 import { fetchEmployees, fetchDepartments, fetchLeaveRequests, fetchPayrollRecords } from "@/lib/supabase"
 
 export default async function ReportsPage() {
@@ -29,7 +24,6 @@ export default async function ReportsPage() {
 
   // Process data for charts
   const departmentData = processDepartmentData(employees, departments)
-  const genderData = processGenderData(employees)
   const employmentTypeData = processEmploymentTypeData(employees)
   const leaveData = processLeaveData(leaveRequests)
   const salaryRangeData = processSalaryData(employees)
@@ -86,259 +80,34 @@ export default async function ReportsPage() {
       <Tabs defaultValue="workforce">
         <TabsContent value="workforce" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Department Distribution</CardTitle>
-                <CardDescription>Employee count by department</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={departmentData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={true}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {departmentData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [`${value} employees`, "Count"]} />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            <DepartmentDistributionChart data={departmentData} />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Gender Distribution</CardTitle>
-                <CardDescription>Employee count by gender</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={genderData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={true}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {genderData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={GENDER_COLORS[index % GENDER_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [`${value} employees`, "Count"]} />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Employment Type</CardTitle>
-                <CardDescription>Employee count by employment type</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={employmentTypeData}
-                      margin={{
-                        top: 5,
-                        right: 30,
-                        left: 20,
-                        bottom: 5,
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="value" fill="#8884d8" name="Employees" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            <EmploymentTypeChart data={employmentTypeData} />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Salary Distribution</CardTitle>
-                <CardDescription>Employee count by salary range</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={salaryRangeData}
-                      margin={{
-                        top: 5,
-                        right: 30,
-                        left: 20,
-                        bottom: 5,
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="range" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="count" fill="#82ca9d" name="Employees" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            <SalaryDistributionChart data={salaryRangeData} />
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Employee Turnover Trend</CardTitle>
-              <CardDescription>Monthly employee turnover rate</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={employeeTurnoverData}
-                    margin={{
-                      top: 5,
-                      right: 30,
-                      left: 20,
-                      bottom: 5,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="hires" stroke="#82ca9d" name="New Hires" />
-                    <Line type="monotone" dataKey="exits" stroke="#ff7300" name="Exits" />
-                    <Line type="monotone" dataKey="turnoverRate" stroke="#8884d8" name="Turnover Rate (%)" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+          <EmployeeTurnoverChart data={employeeTurnoverData} />
         </TabsContent>
 
         <TabsContent value="attendance" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Leave Requests by Type</CardTitle>
-                <CardDescription>Distribution of leave requests by type</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={leaveData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={true}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {leaveData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [`${value} requests`, "Count"]} />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            <LeaveByTypeChart data={leaveData} />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Leave Status</CardTitle>
-                <CardDescription>Status of leave requests</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={[
-                        { name: "Approved", value: leaveRequests.filter((r) => r.status === "Approved").length },
-                        { name: "Pending", value: leaveRequests.filter((r) => r.status === "Pending").length },
-                        { name: "Rejected", value: leaveRequests.filter((r) => r.status === "Rejected").length },
-                      ]}
-                      margin={{
-                        top: 5,
-                        right: 30,
-                        left: 20,
-                        bottom: 5,
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="value" fill="#8884d8" name="Requests" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
+            <LeaveStatusChart data={[
+              { name: "Approved", value: leaveRequests.filter((r) => r.status === "approved").length },
+              { name: "Pending", value: leaveRequests.filter((r) => r.status === "pending").length },
+              { name: "Rejected", value: leaveRequests.filter((r) => r.status === "rejected").length },
+            ]} />
           </div>
         </TabsContent>
 
         <TabsContent value="payroll" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Payroll Trend</CardTitle>
-              <CardDescription>Monthly payroll amounts</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={payrollRecords.map((record) => ({
-                      period: record.period,
-                      amount: record.total_amount,
-                    }))}
-                    margin={{
-                      top: 5,
-                      right: 30,
-                      left: 20,
-                      bottom: 5,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="period" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [`UGX ${value.toLocaleString()}`, "Amount"]} />
-                    <Legend />
-                    <Line type="monotone" dataKey="amount" stroke="#8884d8" name="Payroll Amount" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+          <PayrollTrendChart data={payrollRecords.map((record) => ({
+            period: record.period,
+            amount: record.total_amount,
+          }))} />
         </TabsContent>
 
         <TabsContent value="performance" className="space-y-4">
@@ -400,7 +169,7 @@ export default async function ReportsPage() {
   )
 }
 
-function ReportCard({ title, description, count }) {
+function ReportCard({ title, description, count }: { title: string; description: string; count: number }) {
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-0">
@@ -433,21 +202,21 @@ function ReportCard({ title, description, count }) {
 }
 
 // Helper functions for data processing
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D", "#FFC658", "#8DD1E1"]
-const GENDER_COLORS = ["#0088FE", "#FF8042", "#FFBB28"]
 
-function processDepartmentData(employees, departments) {
-  const departmentCounts = {}
+function processDepartmentData(employees: Employee[], departments: Department[]) {
+  const departmentCounts: { [key: string]: number } = {}
 
   // Initialize with all departments
-  departments.forEach((dept) => {
+  departments.forEach((dept: Department) => {
     departmentCounts[dept.name] = 0
   })
 
   // Count employees in each department
-  employees.forEach((emp) => {
+  employees.forEach((emp: Employee) => {
     if (emp.department) {
-      departmentCounts[emp.department] = (departmentCounts[emp.department] || 0) + 1
+      if (emp.department?.name) { // Ensure department and name exist
+        departmentCounts[emp.department.name] = (departmentCounts[emp.department.name] || 0) + 1
+      }
     }
   })
 
@@ -458,35 +227,19 @@ function processDepartmentData(employees, departments) {
   }))
 }
 
-function processGenderData(employees) {
-  const genderCounts = {
-    Male: 0,
-    Female: 0,
-    Other: 0,
-  }
-
-  employees.forEach((emp) => {
-    if (emp.gender) {
-      genderCounts[emp.gender] = (genderCounts[emp.gender] || 0) + 1
-    }
-  })
-
-  return Object.entries(genderCounts).map(([name, value]) => ({
-    name,
-    value,
-  }))
-}
-
-function processEmploymentTypeData(employees) {
+function processEmploymentTypeData(employees: Employee[]) {
   const typeCounts = {
     Permanent: 0,
     Contract: 0,
     Temporary: 0,
   }
 
-  employees.forEach((emp) => {
+  employees.forEach((emp: Employee) => {
     if (emp.employment_type) {
-      typeCounts[emp.employment_type] = (typeCounts[emp.employment_type] || 0) + 1
+    const empType = emp.employment_type as keyof typeof typeCounts; // Add type assertion
+    if (empType && typeCounts.hasOwnProperty(empType)) {
+        typeCounts[empType] = (typeCounts[empType] || 0) + 1
+    }
     }
   })
 
@@ -496,12 +249,14 @@ function processEmploymentTypeData(employees) {
   }))
 }
 
-function processLeaveData(leaveRequests) {
-  const leaveCounts = {}
+function processLeaveData(leaveRequests: LeaveRequest[]) {
+  const leaveCounts: { [key: string]: number } = {}
 
-  leaveRequests.forEach((leave) => {
+  leaveRequests.forEach((leave: LeaveRequest) => {
     if (leave.leave_type) {
-      leaveCounts[leave.leave_type] = (leaveCounts[leave.leave_type] || 0) + 1
+    if (leave.leave_type) {
+        leaveCounts[leave.leave_type] = (leaveCounts[leave.leave_type] || 0) + 1
+    }
     }
   })
 
@@ -511,7 +266,7 @@ function processLeaveData(leaveRequests) {
   }))
 }
 
-function processSalaryData(employees) {
+function processSalaryData(employees: Employee[]) {
   // This is a placeholder since we don't have actual salary data
   // In a real implementation, you would extract salary data from employees
   return [
@@ -536,11 +291,11 @@ function generateEmployeeTurnoverData() {
   ]
 }
 
-function getNewHiresCount(employees) {
+function getNewHiresCount(employees: Employee[]) {
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-  return employees.filter((emp) => {
+  return employees.filter((emp: Employee) => {
     const createdDate = new Date(emp.created_at)
     return createdDate >= thirtyDaysAgo
   }).length
