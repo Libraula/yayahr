@@ -15,7 +15,21 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
   },
-    generator: 'v0.dev'
+    generator: 'v0.dev',
+    // Add Open Graph metadata
+    openGraph: {
+      title: "YAYA HR | Human Resource Management System",
+      description: "Comprehensive HR Management System by YAYA",
+      images: [
+        {
+          url: "https://www.yayainnovations.com/static/img/logo/yaya-logo-1.png", // Your logo URL
+          width: 800, // Optional: Specify width
+          height: 600, // Optional: Specify height
+          alt: 'YAYA Innovations Logo', // Optional: Alt text
+        },
+      ],
+      type: 'website', // Optional: Specify content type
+    },
 }
 
 export default function RootLayout({
