@@ -171,83 +171,200 @@ export type LeaveRequest = {
   employee?: Employee
 }
 
+// Define the specific structure returned by the fetchEmployees query
+type FetchedEmployeeData = {
+  id: string;
+  employee_id: string | null;
+  employment_status: string | null;
+  created_at: string;
+  department: { name: string } | { name: string }[] | null; // Allow object or array
+  job_grade: { grade_name: string } | { grade_name: string }[] | null; // Allow object or array
+  contact: { full_name: string; email: string | null; phone_number: string | null }[] | null; // Contact is likely always an array join
+};
+
 // Helper functions for database operations
-export async function fetchEmployees(): Promise<Employee[]> {
+// Updated fetchEmployees to get more details for the directory
+export async function fetchEmployees(): Promise<any[]> { // Using any[] for now, define a specific type later if needed
   try {
-    // Join with departments to get department name
     const { data, error } = await supabase
       .from("employees")
       .select(`
-        *,
-        departments:department_id (name),
-        job_grades:job_grade_id (grade_name)
+        id,
+        employee_id,
+        employment_status,
+        created_at,
+        department:departments ( name ),
+        job_grade:job_grades ( grade_name ),
+        contact:employee_contacts ( full_name, email, phone_number )
       `)
-      .order("created_at", { ascending: false })
+      // Filter employee_contacts to get only the 'personal' type, assuming one primary contact per employee
+      // Adjust filter as needed if multiple contacts should be fetched or logic is different
+      .eq('contact.contact_type', 'personal')
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching employees:", error)
-      return []
+      console.error("Error fetching employees:", error);
+      throw error; // Re-throw error
     }
 
-    // Transform the data to match the expected format in the UI
-    return data.map((emp) => ({
-      id: emp.id,
-      full_name: emp.full_name || `Employee ${emp.employee_id}`,
-      date_of_birth: emp.date_of_birth,
-      gender: emp.gender,
-      nationality: emp.nationality,
-      marital_status: emp.marital_status,
-      residential_address: emp.residential_address,
-      contact_number: emp.contact_number,
-      email: emp.email,
+    // Cast the result to the specific type and process
+    return (data as FetchedEmployeeData[]).map((emp) => {
+      // Safely access contact info (assuming contact is always an array or null)
+      const primaryContact = emp.contact?.[0] || null;
 
-      national_id: emp.national_id,
-      tin_number: emp.tin_number,
-      nssf_number: emp.nssf_number,
+      // Safely access department name
+      const departmentName = emp.department
+        ? (Array.isArray(emp.department) ? emp.department[0]?.name : emp.department.name)
+        : null;
 
-      employee_id: emp.employee_id,
-      job_title: emp.job_title,
-      department: emp.departments?.name || "",
-      employment_type: emp.employment_type,
-      date_of_employment: emp.date_of_employment,
+      // Safely access job grade name
+      const jobGradeName = emp.job_grade
+        ? (Array.isArray(emp.job_grade) ? emp.job_grade[0]?.grade_name : emp.job_grade.grade_name)
+        : null;
 
-      status: emp.employment_status || "Active",
-      created_at: emp.created_at,
+      return {
+        id: emp.id,
+        employee_id: emp.employee_id,
+        full_name: primaryContact?.full_name || `Employee ${emp.employee_id || emp.id}`,
+        email: primaryContact?.email,
+        phone_number: primaryContact?.phone_number,
+        department: departmentName || 'N/A',
+        job_grade: jobGradeName || 'N/A',
+        status: emp.employment_status || 'N/A',
+        created_at: emp.created_at,
+      };
+    });
 
-      // Add other fields as needed
-    }))
   } catch (error) {
-    console.error("Error in fetchEmployees:", error)
-    return []
+    console.error("Error in fetchEmployees:", error);
+    return []; // Return empty array on error
   }
 }
 
-// Update the fetchEmployee function to match the actual database schema
-export async function fetchEmployee(id: string): Promise<Employee | null> {
+// Define the raw structure returned by the Supabase query for fetchEmployee
+type FetchedEmployeeRawData = {
+  id: string;
+  employee_id: string | null;
+  employment_status: string | null;
+  employment_type: string | null;
+  national_id: string | null;
+  tin_number: string | null;
+  nssf_number: string | null;
+  created_at: string;
+  updated_at: string | null;
+  // Adjust types to reflect that joins might return arrays even with .maybeSingle()
+  department: { id: string; name: string }[] | null;
+  job_grade: { id: string; grade_name: string }[] | null;
+  manager: { id: string }[] | null;
+  contacts: { id: string; full_name: string; email: string | null; phone_number: string | null; contact_type: string; relationship: string | null }[] | null;
+  payroll: { bank_name: string | null; account_number: string | null; mobile_money_provider: string | null; mobile_money_number: string | null; payment_method: string; base_salary: number; effective_date: string }[] | null;
+  permits: { permit_number: string; expiration_date: string; nationality: string }[] | null;
+};
+
+// Updated fetchEmployee to select more fields needed for profile/edit pages
+export async function fetchEmployee(id: string): Promise<any | null> {
   try {
-    const { data, error } = await supabase
+    const { data: rawData, error } = await supabase
       .from("employees")
       .select(`
-        *,
-        departments:department_id (name),
-        job_grades:job_grade_id (grade_name),
-        manager:reporting_manager_id (full_name)
+        id, employee_id, employment_status, employment_type, national_id, tin_number, nssf_number, created_at, updated_at,
+        department:departments ( id, name ),
+        job_grade:job_grades ( id, grade_name ),
+        manager:reporting_manager_id ( id ),
+        contacts:employee_contacts ( * ),
+        payroll:payroll_profiles ( * ),
+        permits:work_permits ( * )
       `)
       .eq("id", id)
-      .single()
+      .maybeSingle();
 
     if (error) {
-      console.error(`Error fetching employee ${id}:`, error)
-      return null
+      console.error(`Supabase error fetching employee ${id}:`, error);
+      throw error;
     }
 
-    return data as Employee
-  } catch (error) {
-    console.error(`Error in fetchEmployee for ${id}:`, error)
-    return null
+    if (!rawData) {
+      console.warn(`Employee with ID ${id} not found.`);
+      return null;
+    }
+
+    // Cast the raw data to our defined type
+    const data = rawData as FetchedEmployeeRawData;
+
+    // Process data safely
+    const contactsArray = Array.isArray(data.contacts) ? data.contacts : [];
+    const payrollArray = Array.isArray(data.payroll) ? data.payroll : [];
+    const permitsArray = Array.isArray(data.permits) ? data.permits : [];
+
+    // Safely access the first element if the related data is an array
+    const department = Array.isArray(data.department) ? data.department[0] : data.department;
+    const jobGrade = Array.isArray(data.job_grade) ? data.job_grade[0] : data.job_grade;
+    const manager = Array.isArray(data.manager) ? data.manager[0] : data.manager;
+
+    const personalContact = contactsArray.find(c => c.contact_type === 'personal') || contactsArray[0] || null;
+    const emergencyContact = contactsArray.find(c => c.contact_type === 'emergency') || null;
+    const currentPayroll = payrollArray.sort((a, b) => new Date(b.effective_date).getTime() - new Date(a.effective_date).getTime())[0] || null;
+    const currentPermit = permitsArray.sort((a, b) => new Date(b.expiration_date).getTime() - new Date(a.expiration_date).getTime())[0] || null;
+
+    // Construct the final object explicitly, selecting fields needed by profile/edit pages
+    const processedData = {
+        id: data.id,
+        employee_id: data.employee_id,
+        employment_status: data.employment_status,
+        employment_type: data.employment_type,
+        national_id: data.national_id,
+        tin_number: data.tin_number,
+        nssf_number: data.nssf_number,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+        department_id: department?.id, // Use processed variable
+        department_name: department?.name, // Use processed variable
+        job_grade_id: jobGrade?.id, // Use processed variable
+        job_grade_name: jobGrade?.grade_name, // Use processed variable
+        reporting_manager_id: manager?.id, // Use processed variable
+        contacts: contactsArray, // Full contacts array for edit page
+
+        // Flattened primary contact details
+        full_name: personalContact?.full_name || `Employee ${data.employee_id || data.id}`,
+        email: personalContact?.email,
+        phone_number: personalContact?.phone_number,
+
+        // Flattened emergency contact details
+        emergency_contact_name: emergencyContact?.full_name,
+        emergency_contact_relationship: emergencyContact?.relationship,
+        emergency_contact_number: emergencyContact?.phone_number,
+
+        // Flattened payroll details
+        bank_name: currentPayroll?.bank_name,
+        bank_account_number: currentPayroll?.account_number,
+        mobile_money_provider: currentPayroll?.mobile_money_provider,
+        mobile_money_number: currentPayroll?.mobile_money_number,
+        payment_method: currentPayroll?.payment_method,
+        base_salary: currentPayroll?.base_salary,
+
+        // Flattened work permit details
+        work_permit_number: currentPermit?.permit_number,
+        work_permit_expiry: currentPermit?.expiration_date,
+        nationality: currentPermit?.nationality,
+
+        // Add other fields needed by profile/edit pages explicitly if they exist on the fetched tables
+        // date_of_birth: personalContact?.date_of_birth, // Example
+        // gender: personalContact?.gender, // Example
+        // marital_status: personalContact?.marital_status, // Example
+        // residential_address: personalContact?.address, // Example
+        // job_title: data.job_title, // If job_title exists directly on employees table
+        // date_of_employment: data.date_of_employment, // If exists on employees table
+        // probation_period: data.probation_period, // If exists on employees table
+        // working_hours: data.working_hours, // If exists on employees table
+    };
+
+    return processedData;
+
+  } catch (error: any) {
+    console.error(`Error in fetchEmployee function for ${id}:`, error.message);
+    return null;
   }
 }
-
 // Update the fetchDepartments function to match the actual database schema
 export async function fetchDepartments(): Promise<Department[]> {
   try {

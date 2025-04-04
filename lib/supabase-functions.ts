@@ -338,3 +338,149 @@ export async function createEmployeeContact(contactData: {
     }
 }
 
+// Function to update employee status (Moved outside createEmployeeContact)
+export async function updateEmployeeStatus(employeeId: string, newStatus: string): Promise<any> {
+    try {
+        // Validate status against the ENUM type if possible, or rely on DB constraint
+        const validStatuses = ['probation', 'active', 'suspended', 'terminated', 'retired'];
+        if (!validStatuses.includes(newStatus)) {
+            throw new Error(`Invalid status provided: ${newStatus}`);
+        }
+
+        const { data, error } = await supabase
+            .from('employees')
+            .update({ employment_status: newStatus })
+            .eq('id', employeeId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error(`Error updating status for employee ${employeeId}:`, error);
+            // Check for RLS errors specifically if needed
+            if (error.message.includes("violates row-level security policy")) {
+                 throw new Error("Permission denied: You might not have the rights to update employee status.");
+            }
+            throw error;
+        }
+        return data;
+
+    } catch (error) {
+        console.error("Error in updateEmployeeStatus function:", error);
+        throw error;
+    }
+}
+
+// Function to update the core employee record
+export async function updateEmployeeCore(employeeId: string, coreUpdates: any): Promise<any> {
+    try {
+        // Filter updates to only include fields that exist in the 'employees' table
+        const allowedCoreFields = [
+            'department_id', 'job_grade_id', 'national_id', 'tin_number',
+            'nssf_number', 'employee_id', 'employment_type', 'employment_status',
+            'reporting_manager_id'
+            // Add any other mutable fields from your 'employees' table schema
+        ];
+        const filteredCoreUpdates: { [key: string]: any } = {};
+        for (const key of allowedCoreFields) {
+            if (coreUpdates.hasOwnProperty(key)) {
+                filteredCoreUpdates[key] = coreUpdates[key];
+            }
+        }
+
+        if (Object.keys(filteredCoreUpdates).length === 0) {
+            console.log("No valid core employee fields to update.");
+            return null; // Or return the existing data? Depends on desired behavior
+        }
+
+        const { data, error } = await supabase
+            .from('employees')
+            .update(filteredCoreUpdates)
+            .eq('id', employeeId)
+            .select()
+            .single();
+
+        if (error) {
+            console.error(`Error updating core employee ${employeeId}:`, error);
+            throw error;
+        }
+        return data;
+
+    } catch (error) {
+        console.error("Error in updateEmployeeCore function:", error);
+        throw error;
+    }
+}
+
+// Function to update employee contact details (assumes one primary 'personal' contact for simplicity)
+// You might need more complex logic if multiple contacts per type can be edited.
+export async function updateEmployeeContact(
+    employeeId: string,
+    contactUpdates: { full_name?: string; email?: string; phone_number?: string; /* add other fields */ },
+    contactType: string = 'personal' // Default to updating the 'personal' contact
+): Promise<any> {
+    try {
+        // Find the existing contact ID to update
+        const { data: existingContacts, error: findError } = await supabase
+            .from('employee_contacts')
+            .select('id')
+            .eq('employee_id', employeeId)
+            .eq('contact_type', contactType)
+            .limit(1); // Assuming one contact per type for update
+
+        if (findError) {
+            console.error(`Error finding contact for employee ${employeeId}:`, findError);
+            throw findError;
+        }
+
+        if (!existingContacts || existingContacts.length === 0) {
+            // Option 1: Create contact if it doesn't exist
+             console.warn(`No '${contactType}' contact found for employee ${employeeId}. Creating one.`);
+             return await createEmployeeContact({
+                 employee_id: employeeId,
+                 contact_type: contactType,
+                 full_name: contactUpdates.full_name || 'Unknown Name', // Provide defaults or handle error
+                 phone_number: contactUpdates.phone_number || 'Unknown Phone',
+                 email: contactUpdates.email
+             });
+            // Option 2: Throw an error
+            // throw new Error(`No '${contactType}' contact found for employee ${employeeId} to update.`);
+        }
+
+        const contactId = existingContacts[0].id;
+
+        // Filter updates to only include valid contact fields
+         const allowedContactFields = ['full_name', 'email', 'phone_number', 'relationship'];
+         const filteredContactUpdates: { [key: string]: any } = {};
+         for (const key of allowedContactFields) {
+             // Cast key to a valid keyof the contactUpdates type to satisfy TypeScript
+             const typedKey = key as keyof typeof contactUpdates;
+             if (contactUpdates.hasOwnProperty(typedKey)) {
+                 filteredContactUpdates[typedKey] = contactUpdates[typedKey];
+             }
+         }
+
+         if (Object.keys(filteredContactUpdates).length === 0) {
+             console.log("No valid contact fields to update.");
+             return null;
+         }
+
+
+        const { data, error } = await supabase
+            .from('employee_contacts')
+            .update(filteredContactUpdates)
+            .eq('id', contactId) // Update using the specific contact ID
+            .select()
+            .single();
+
+        if (error) {
+            console.error(`Error updating contact ${contactId}:`, error);
+            throw error;
+        }
+        return data;
+
+    } catch (error) {
+        console.error("Error in updateEmployeeContact function:", error);
+        throw error;
+    }
+}
+

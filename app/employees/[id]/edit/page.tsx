@@ -13,7 +13,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft } from "lucide-react"
-import { fetchEmployee, updateEmployee } from "@/lib/supabase"
+import { fetchEmployee } from "@/lib/supabase" // fetchEmployee is in supabase.ts
+import { updateEmployeeCore, updateEmployeeContact } from "@/lib/supabase-functions" // Import new update functions
 import { toast } from "@/components/ui/use-toast"
 
 export default function EditEmployee({ params }: { params: { id: string } }) {
@@ -142,40 +143,60 @@ export default function EditEmployee({ params }: { params: { id: string } }) {
     setIsSubmitting(true)
 
     try {
-      // Convert numeric fields
-      const numericFields = {
+      // Separate data for core employee table and contact table
+      const coreUpdates = {
+        // department_id: formData.department_id, // Requires fetching/managing IDs
+        // job_grade_id: formData.job_grade_id, // Requires fetching/managing IDs
+        national_id: formData.national_id,
+        tin_number: formData.tin_number,
+        nssf_number: formData.nssf_number,
+        employee_id: formData.employee_id, // The textual ID
+        employment_type: formData.employment_type,
+        // employment_status: formData.status, // Status handled separately
+        // reporting_manager_id: formData.reporting_manager_id, // Requires fetching/managing IDs
+        // Add other core fields from form
         probation_period: formData.probation_period ? Number.parseInt(formData.probation_period) : null,
-        annual_leave_balance: formData.annual_leave_balance ? Number.parseInt(formData.annual_leave_balance) : null,
-        sick_leave_balance: formData.sick_leave_balance ? Number.parseInt(formData.sick_leave_balance) : null,
-        maternity_paternity_leave_balance: formData.maternity_paternity_leave_balance
-          ? Number.parseInt(formData.maternity_paternity_leave_balance)
-          : null,
-      }
+        // Add other numeric/date conversions for core fields
+      };
 
-      // Update employee in Supabase
-      const result = await updateEmployee(params.id, {
-        ...formData,
-        ...numericFields,
-      })
+      const contactUpdates = {
+        full_name: formData.full_name,
+        email: formData.email,
+        phone_number: formData.contact_number, // Map form field to DB column
+        // Add other contact fields from form like relationship, address if they belong in contacts
+        // emergency_contact_name, emergency_contact_relationship, emergency_contact_number
+        // might belong in a separate 'emergency_contacts' update or handled differently
+      };
 
-      if (result) {
-        toast({
-          title: "Employee Updated",
-          description: `${formData.full_name} has been updated successfully.`,
-        })
-        router.push(`/employees/${params.id}`)
-      } else {
-        throw new Error("Failed to update employee")
-      }
-    } catch (error) {
-      console.error("Error updating employee:", error)
+      // --- Perform Updates Sequentially (Consider transaction for atomicity if needed) ---
+
+      // Update Core Employee Info
+      const coreResult = await updateEmployeeCore(params.id, coreUpdates);
+      // Optional: Check coreResult if needed, though errors should throw
+
+      // Update Personal Contact Info (assuming we update the 'personal' contact)
+      // Note: updateEmployeeContact handles finding/creating the contact record
+      const contactResult = await updateEmployeeContact(params.id, contactUpdates, 'personal');
+      // Optional: Check contactResult if needed
+
+      // --- Success ---
       toast({
-        title: "Error",
-        description: "Failed to update employee. Please try again.",
+        title: "Employee Updated",
+        description: `${formData.full_name || 'Employee'} has been updated successfully.`,
+      });
+      // Redirect back to the employee detail page (or list page)
+      router.push(`/employees`); // Redirect to list page after edit for simplicity
+      // router.push(`/employees/${params.id}`); // Or back to detail page
+
+    } catch (error: any) {
+      console.error("Error updating employee:", error);
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update employee. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
   }
 

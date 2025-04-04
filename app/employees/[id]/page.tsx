@@ -40,7 +40,7 @@ export default async function EmployeeDetails({ params }: { params: { id: string
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InfoItem label="Full Name" value={employee.full_name} />
               <InfoItem icon={<Mail className="h-4 w-4" />} label="Email" value={employee.email || "-"} />
-              <InfoItem icon={<Phone className="h-4 w-4" />} label="Phone" value={employee.contact_number || "-"} />
+              <InfoItem icon={<Phone className="h-4 w-4" />} label="Phone" value={employee.phone_number || "-"} />
               <InfoItem
                 label="Date of Birth"
                 value={employee.date_of_birth ? new Date(employee.date_of_birth).toLocaleDateString() : "-"}
@@ -69,23 +69,21 @@ export default async function EmployeeDetails({ params }: { params: { id: string
             <div className="flex flex-col items-center justify-center py-4">
               <div
                 className={`inline-flex items-center justify-center rounded-full p-8 ${
-                  employee.status === "Active"
-                    ? "bg-green-100"
-                    : employee.status === "On Leave"
-                      ? "bg-yellow-100"
-                      : "bg-red-100"
+                  employee.employment_status === "active" ? "bg-green-100"
+                  : employee.employment_status === "probation" ? "bg-blue-100"
+                  : employee.employment_status === "suspended" ? "bg-yellow-100"
+                  : "bg-red-100" // terminated, retired
                 }`}
               >
-                <span
-                  className={`text-lg font-semibold ${
-                    employee.status === "Active"
-                      ? "text-green-800"
-                      : employee.status === "On Leave"
-                        ? "text-yellow-800"
-                        : "text-red-800"
-                  }`}
-                >
-                  {employee.status || "Unknown"}
+                 <span
+                   className={`text-lg font-semibold capitalize ${ // Added capitalize
+                     employee.employment_status === "active" ? "text-green-800"
+                     : employee.employment_status === "probation" ? "text-blue-800"
+                     : employee.employment_status === "suspended" ? "text-yellow-800"
+                     : "text-red-800" // terminated, retired
+                   }`}
+                 >
+                  {employee.employment_status || "Unknown"}
                 </span>
               </div>
             </div>
@@ -100,16 +98,17 @@ export default async function EmployeeDetails({ params }: { params: { id: string
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <InfoItem icon={<Building className="h-4 w-4" />} label="Position" value={employee.job_title || "-"} />
-              <InfoItem icon={<Building className="h-4 w-4" />} label="Department" value={employee.department || "-"} />
+              <InfoItem icon={<Building className="h-4 w-4" />} label="Department" value={employee.department_name || "-"} />
               <InfoItem label="Employee ID" value={employee.employee_id || "-"} />
               <InfoItem label="Employment Type" value={employee.employment_type || "-"} />
-              <InfoItem label="Manager" value={employee.reporting_manager || "-"} />
+              {/* Displaying manager ID might not be useful, consider fetching name if needed */}
+              {/* <InfoItem label="Manager ID" value={employee.reporting_manager_id || "-"} /> */}
               <InfoItem
                 icon={<Calendar className="h-4 w-4" />}
                 label="Start Date"
                 value={employee.date_of_employment ? new Date(employee.date_of_employment).toLocaleDateString() : "-"}
               />
-              <InfoItem label="Job Grade" value={employee.job_grade || "-"} />
+              <InfoItem label="Job Grade" value={employee.job_grade_name || "-"} />
               <InfoItem
                 label="Probation Period"
                 value={employee.probation_period ? `${employee.probation_period} months` : "-"}
@@ -128,13 +127,19 @@ export default async function EmployeeDetails({ params }: { params: { id: string
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <InfoItem label="National ID" value={employee.national_id || "-"} />
               <InfoItem label="NSSF Number" value={employee.nssf_number || "-"} />
+              <InfoItem label="Nationality" value={employee.nationality || "-"} />
+              <InfoItem label="Work Permit #" value={employee.work_permit_number || "-"} />
+              <InfoItem label="Permit Expiry" value={employee.work_permit_expiry ? new Date(employee.work_permit_expiry).toLocaleDateString() : "-"} />
               <InfoItem label="TIN Number" value={employee.tin_number || "-"} />
               <InfoItem label="Bank Name" value={employee.bank_name || "-"} />
               <InfoItem label="Bank Account" value={employee.bank_account_number || "-"} />
+              <InfoItem label="Mobile Money Provider" value={employee.mobile_money_provider || "-"} />
+              <InfoItem label="Mobile Money Number" value={employee.mobile_money_number || "-"} />
+              <InfoItem label="Payment Method" value={employee.payment_method || "-"} />
               <InfoItem
                 icon={<DollarSign className="h-4 w-4" />}
-                label="Salary Structure"
-                value={employee.salary_structure || "-"}
+                label="Base Salary"
+                value={employee.base_salary ? `UGX ${employee.base_salary.toLocaleString()}` : "-"}
               />
             </div>
           </CardContent>
@@ -147,31 +152,13 @@ export default async function EmployeeDetails({ params }: { params: { id: string
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <InfoItem
-                label="Annual Leave Balance"
-                value={employee.annual_leave_balance !== null ? `${employee.annual_leave_balance} days` : "-"}
-              />
-              <InfoItem
-                label="Sick Leave Balance"
-                value={employee.sick_leave_balance !== null ? `${employee.sick_leave_balance} days` : "-"}
-              />
-              <InfoItem
-                label="Maternity/Paternity Leave"
-                value={
-                  employee.maternity_paternity_leave_balance !== null
-                    ? `${employee.maternity_paternity_leave_balance} days`
-                    : "-"
-                }
-              />
-              <InfoItem
-                label="Last Leave Taken"
-                value={employee.last_leave_taken ? new Date(employee.last_leave_taken).toLocaleDateString() : "-"}
-              />
-              <InfoItem
-                label="Last Appraisal Date"
-                value={employee.last_appraisal_date ? new Date(employee.last_appraisal_date).toLocaleDateString() : "-"}
-              />
-              <InfoItem label="KPIs" value={employee.kpis || "-"} />
+              {/* Leave balances require separate fetch/join */}
+              <InfoItem label="Annual Leave Balance" value={"-"} />
+              <InfoItem label="Sick Leave Balance" value={"-"} />
+              <InfoItem label="Maternity/Paternity Leave" value={"-"} />
+              {/* Performance details require separate fetch/join */}
+              <InfoItem label="Last Appraisal Date" value={"-"} />
+              <InfoItem label="KPIs" value={"-"} />
             </div>
           </CardContent>
         </Card>
