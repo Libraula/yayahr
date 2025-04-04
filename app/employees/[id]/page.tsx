@@ -7,7 +7,8 @@ import { fetchEmployee } from "@/lib/supabase"
 import { notFound } from "next/navigation"
 
 export default async function EmployeeDetails({ params }: { params: { id: string } }) {
-  const employee = await fetchEmployee(params.id)
+  const { id } = params;
+  const employee = await fetchEmployee(id);
 
   if (!employee) {
     return notFound()

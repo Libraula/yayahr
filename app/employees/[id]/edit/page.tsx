@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,8 +17,10 @@ import { fetchEmployee } from "@/lib/supabase" // fetchEmployee is in supabase.t
 import { updateEmployeeCore, updateEmployeeContact } from "@/lib/supabase-functions" // Import new update functions
 import { toast } from "@/components/ui/use-toast"
 
-export default function EditEmployee({ params }: { params: { id: string } }) {
-  const router = useRouter()
+export default function EditEmployee() { // Remove params from props
+  const router = useRouter();
+  const params = useParams<{ id: string }>(); // Use useParams hook
+  const id = params.id; // Extract id for easier use
   const [activeTab, setActiveTab] = useState("personal")
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -83,7 +85,7 @@ export default function EditEmployee({ params }: { params: { id: string } }) {
   useEffect(() => {
     async function loadEmployee() {
       try {
-        const employee = await fetchEmployee(params.id)
+        const employee = await fetchEmployee(id) // Use id from useParams
         if (employee) {
           // Map fetched data (using new field names from fetchEmployee) to formData state
           // Ensure all fields expected by the form state are populated here
@@ -159,7 +161,7 @@ export default function EditEmployee({ params }: { params: { id: string } }) {
     }
 
     loadEmployee()
-  }, [params.id, router])
+  }, [id, router]) // Use id in dependency array
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -203,12 +205,12 @@ export default function EditEmployee({ params }: { params: { id: string } }) {
       // --- Perform Updates Sequentially (Consider transaction for atomicity if needed) ---
 
       // Update Core Employee Info
-      const coreResult = await updateEmployeeCore(params.id, coreUpdates);
+      const coreResult = await updateEmployeeCore(id, coreUpdates); // Use id from useParams
       // Optional: Check coreResult if needed, though errors should throw
 
       // Update Personal Contact Info (assuming we update the 'personal' contact)
       // Note: updateEmployeeContact handles finding/creating the contact record
-      const contactResult = await updateEmployeeContact(params.id, contactUpdates, 'personal');
+      const contactResult = await updateEmployeeContact(id, contactUpdates, 'personal'); // Use id from useParams
       // Optional: Check contactResult if needed
 
       // --- Success ---
@@ -242,7 +244,7 @@ export default function EditEmployee({ params }: { params: { id: string } }) {
 
   return (
     <div className="container mx-auto py-6">
-      <Link href={`/employees/${params.id}`} className="flex items-center text-primary mb-6">
+      <Link href={`/employees/${id}`} className="flex items-center text-primary mb-6"> {/* Use id from useParams */}
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Employee Details
       </Link>
