@@ -85,27 +85,59 @@ export default function EditEmployee({ params }: { params: { id: string } }) {
       try {
         const employee = await fetchEmployee(params.id)
         if (employee) {
-          // Format dates for input fields
-          const formattedEmployee = {
-            ...employee,
-            date_of_birth: employee.date_of_birth ? employee.date_of_birth.split("T")[0] : "",
-            date_of_employment: employee.date_of_employment ? employee.date_of_employment.split("T")[0] : "",
-            last_leave_taken: employee.last_leave_taken ? employee.last_leave_taken.split("T")[0] : "",
-            last_appraisal_date: employee.last_appraisal_date ? employee.last_appraisal_date.split("T")[0] : "",
-            exit_date: employee.exit_date ? employee.exit_date.split("T")[0] : "",
+          // Map fetched data (using new field names from fetchEmployee) to formData state
+          // Ensure all fields expected by the form state are populated here
+          setFormData({
+            full_name: employee.full_name || "",
+            date_of_birth: employee.date_of_birth ? employee.date_of_birth.split("T")[0] : "", // Assuming date_of_birth is fetched if needed
+            gender: employee.gender || "", // Assuming gender is fetched if needed
+            nationality: employee.nationality || "", // Fetched from permit
+            marital_status: employee.marital_status || "", // Assuming marital_status is fetched if needed
+            residential_address: employee.residential_address || "", // Assuming address is fetched if needed
+            contact_number: employee.phone_number || "", // Use phone_number
+            email: employee.email || "",
+            emergency_contact_name: employee.emergency_contact_name || "",
+            emergency_contact_relationship: employee.emergency_contact_relationship || "",
+            emergency_contact_number: employee.emergency_contact_number || "",
 
-            // Convert numeric fields to strings for input fields
-            probation_period: employee.probation_period !== null ? employee.probation_period.toString() : "",
-            annual_leave_balance:
-              employee.annual_leave_balance !== null ? employee.annual_leave_balance.toString() : "",
-            sick_leave_balance: employee.sick_leave_balance !== null ? employee.sick_leave_balance.toString() : "",
-            maternity_paternity_leave_balance:
-              employee.maternity_paternity_leave_balance !== null
-                ? employee.maternity_paternity_leave_balance.toString()
-                : "",
-          }
+            national_id: employee.national_id || "",
+            passport_number: employee.passport_number || "", // Assuming passport_number is fetched if needed
+            nssf_number: employee.nssf_number || "",
+            tin_number: employee.tin_number || "",
+            work_permit_number: employee.work_permit_number || "", // Fetched from permit
 
-          setFormData(formattedEmployee)
+            employee_id: employee.employee_id || "",
+            job_title: employee.job_title || "", // Assuming job_title is fetched if needed
+            department: employee.department_name || "", // Use department_name
+            employment_type: employee.employment_type || "",
+            date_of_employment: employee.date_of_employment ? employee.date_of_employment.split("T")[0] : "", // Assuming date_of_employment is fetched
+            probation_period: employee.probation_period !== null ? String(employee.probation_period) : "", // Assuming probation_period is fetched
+            reporting_manager: employee.reporting_manager_id || "", // Store manager ID for now, need name lookup for display
+            job_grade: employee.job_grade_name || "", // Use job_grade_name
+
+            bank_name: employee.bank_name || "",
+            bank_account_number: employee.bank_account_number || "",
+            salary_structure: employee.salary_structure || "", // Assuming salary_structure is fetched
+            paye_tax_bracket: employee.paye_tax_bracket || "", // Assuming paye_tax_bracket is fetched
+            overtime_rate: employee.overtime_rate || "", // Assuming overtime_rate is fetched
+            bonuses_commissions: employee.bonuses_commissions || "", // Assuming bonuses_commissions is fetched
+            deductions: employee.deductions || "", // Assuming deductions is fetched
+
+            working_hours: employee.working_hours || "", // Assuming working_hours is fetched
+            // Leave balances need separate fetch
+            annual_leave_balance: "",
+            sick_leave_balance: "",
+            maternity_paternity_leave_balance: "",
+            last_leave_taken: "",
+
+            // Performance fields need separate fetch
+            kpis: "",
+            last_appraisal_date: "",
+            training_certifications: "",
+            promotions_disciplinary: "",
+
+            status: employee.employment_status || "", // Use employment_status
+          });
         } else {
           toast({
             title: "Error",

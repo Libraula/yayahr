@@ -190,7 +190,7 @@ function EmployeeTable({ employees, isLoading, error, refreshData }: { employees
               </TableRow>
            ) : employees.length > 0 ? (
             employees.map((employee) => (
-              <TableRow key={employee.id}>
+              <TableRow key={employee.id}>{/* Ensure no whitespace before first TableCell */}
                 {/* Employee Cell */}
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -286,7 +286,7 @@ function EmployeeTable({ employees, isLoading, error, refreshData }: { employees
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
-              </TableRow>
+              </TableRow>/* Ensure no whitespace after last TableCell */
             ))
           ) : (
              <TableRow>
