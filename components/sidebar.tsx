@@ -161,8 +161,15 @@ export default function Sidebar() {
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between h-16 border-b px-4">
             <Link href="/" className="flex items-center space-x-2" onClick={() => isMobile && setIsOpen(false)}>
-              <div className={cn("font-bold text-xl transition-all", isCollapsed ? "lg:text-sm" : "")}>YAYA</div>
-              {!isCollapsed && <span className="font-bold text-lg hidden lg:block">HR System</span>}
+              {/* Replace text with logo image */}
+              <img
+                src="https://www.yayainnovations.com/static/img/logo/yaya-logo-1.png"
+                alt="YAYA Innovations Logo"
+                className={cn(
+                  "object-contain transition-all duration-200 ease-in-out",
+                  isCollapsed ? "h-6" : "h-8" // Adjust height based on collapsed state
+                )}
+              />
             </Link>
             <Button variant="ghost" size="icon" onClick={toggleCollapse} className="hidden lg:flex">
               {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}

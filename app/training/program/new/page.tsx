@@ -14,11 +14,45 @@ import { Loader2, ArrowLeft, Plus, X } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { createTrainingProgram } from "@/lib/supabase-functions" // Import the function
+
+interface TrainingFormData {
+  title: string
+  type: string
+  delivery_method: string
+  duration_hours: number | null
+  start_date: string
+  end_date: string
+  max_participants: number | null
+  provider: string
+  description: string
+  objectives: string
+  prerequisites: string
+  assessment_method: string
+  offers_certification: boolean
+  is_mandatory: boolean
+}
 
 export default function NewTrainingProgramPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [formData, setFormData] = useState<TrainingFormData>({
+    title: "",
+    type: "",
+    delivery_method: "",
+    duration_hours: null,
+    start_date: "",
+    end_date: "",
+    max_participants: null,
+    provider: "",
+    description: "",
+    objectives: "",
+    prerequisites: "",
+    assessment_method: "",
+    offers_certification: false,
+    is_mandatory: false,
+  })
   const [modules, setModules] = useState([{ title: "", description: "" }])
 
   const addModule = () => {
@@ -42,16 +76,87 @@ export default function NewTrainingProgramPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setStatus("loading")
+    console.log("Submitting Training Program:", { ...formData, modules })
 
-    // Simulate API call
-    setTimeout(() => {
-      setStatus("success")
+    try {
+      // Prepare programData payload
+      const programData = {
+        name: formData.title, // Assuming schema uses 'name'
+        type: formData.type,
+        delivery_method: formData.delivery_method,
+        // Convert duration hours to interval string 'X hours' for Supabase
+        duration: formData.duration_hours ? `${formData.duration_hours} hours` : null,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        max_participants: formData.max_participants,
+        provider: formData.provider,
+        description: formData.description,
+        learning_objectives: formData.objectives, // Assuming schema name
+        prerequisites: formData.prerequisites,
+        modules: modules, // Store modules array as JSON
+        assessment_method: formData.assessment_method,
+        certification_recognized: formData.offers_certification, // Assuming schema name
+        is_mandatory: formData.is_mandatory,
+      }
+
+      // Validate required fields
+      if (!programData.name || !programData.type || !programData.delivery_method || !programData.duration || !programData.start_date || !programData.end_date || !programData.provider) {
+         throw new Error("Please fill in all required fields.")
+      }
+      if (modules.some(m => !m.title || !m.description)) {
+         throw new Error("Please ensure all module titles and descriptions are filled.")
+      }
+
+      // Call Supabase function (pass empty array for participants)
+      const result = await createTrainingProgram(programData, [])
+
+      if (result) {
+        setStatus("success")
+        toast({
+          title: "Training program created",
+          description: "The training program has been created successfully.",
+        })
+        router.push("/training")
+      } else {
+        throw new Error("Failed to create training program in Supabase.")
+      }
+    } catch (error) {
+      console.error("Error creating training program:", error)
+      setStatus("error")
       toast({
-        title: "Training program created",
-        description: "The training program has been created successfully.",
+        title: "Error",
+        description: `There was an error creating the program: ${error instanceof Error ? error.message : "Unknown error"}`,
+        variant: "destructive",
       })
-      router.push("/training")
-    }, 1500)
+    } finally {
+      if (status === "success" || status === "error") {
+        setStatus("idle")
+      }
+    }
+  }
+
+   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = event.target
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: type === 'number' ? (value === '' ? null : Number(value)) : value,
+    }))
+  }
+
+  const handleSelectChange = (name: keyof TrainingFormData) => (value: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }))
+  }
+
+   const handleCheckboxChange = (name: keyof TrainingFormData) => (checked: boolean | 'indeterminate') => {
+     if (typeof checked === 'boolean') {
+        setFormData((prevData) => ({
+          ...prevData,
+          [name]: checked,
+        }))
+     }
   }
 
   return (
@@ -71,12 +176,12 @@ export default function NewTrainingProgramPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="program-title">Program Title</Label>
-                <Input id="program-title" placeholder="e.g. Leadership Development" required />
+                <Input id="title" name="title" placeholder="e.g. Leadership Development" required value={formData.title} onChange={handleInputChange} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="program-type">Program Type</Label>
-                <Select required>
+                <Select required name="type" value={formData.type} onValueChange={handleSelectChange("type")}>
                   <SelectTrigger id="program-type">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
@@ -93,7 +198,7 @@ export default function NewTrainingProgramPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="delivery-method">Delivery Method</Label>
-                <Select required>
+                <Select required name="delivery_method" value={formData.delivery_method} onValueChange={handleSelectChange("delivery_method")}>
                   <SelectTrigger id="delivery-method">
                     <SelectValue placeholder="Select method" />
                   </SelectTrigger>
@@ -110,27 +215,27 @@ export default function NewTrainingProgramPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="duration">Duration (hours)</Label>
-                <Input id="duration" type="number" min="1" placeholder="e.g. 8" required />
+                <Input id="duration_hours" name="duration_hours" type="number" min="1" placeholder="e.g. 8" required value={formData.duration_hours ?? ""} onChange={handleInputChange} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="start-date">Start Date</Label>
-                <Input id="start-date" type="date" required />
+                <Input id="start_date" name="start_date" type="date" required value={formData.start_date} onChange={handleInputChange} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="end-date">End Date</Label>
-                <Input id="end-date" type="date" required />
+                <Input id="end_date" name="end_date" type="date" required value={formData.end_date} onChange={handleInputChange} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="max-participants">Maximum Participants</Label>
-                <Input id="max-participants" type="number" min="1" placeholder="e.g. 20" required />
+                <Input id="max_participants" name="max_participants" type="number" min="1" placeholder="e.g. 20" required value={formData.max_participants ?? ""} onChange={handleInputChange} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="provider">Training Provider</Label>
-                <Input id="provider" placeholder="e.g. Internal HR or External Company" required />
+                <Input id="provider" name="provider" placeholder="e.g. Internal HR or External Company" required value={formData.provider} onChange={handleInputChange} />
               </div>
             </div>
 
@@ -138,9 +243,12 @@ export default function NewTrainingProgramPage() {
               <Label htmlFor="description">Program Description</Label>
               <Textarea
                 id="description"
+                name="description"
                 placeholder="Provide a detailed description of the training program"
                 className="min-h-[150px]"
                 required
+                value={formData.description}
+                onChange={handleInputChange}
               />
             </div>
 
@@ -148,9 +256,12 @@ export default function NewTrainingProgramPage() {
               <Label htmlFor="objectives">Learning Objectives</Label>
               <Textarea
                 id="objectives"
+                name="objectives"
                 placeholder="List the key learning objectives and outcomes"
                 className="min-h-[100px]"
                 required
+                value={formData.objectives}
+                onChange={handleInputChange}
               />
             </div>
 
@@ -158,8 +269,11 @@ export default function NewTrainingProgramPage() {
               <Label htmlFor="prerequisites">Prerequisites</Label>
               <Textarea
                 id="prerequisites"
+                name="prerequisites"
                 placeholder="List any prerequisites or requirements for participants"
                 className="min-h-[100px]"
+                value={formData.prerequisites}
+                onChange={handleInputChange}
               />
             </div>
 
@@ -210,20 +324,23 @@ export default function NewTrainingProgramPage() {
             <div className="space-y-2">
               <Label htmlFor="assessment">Assessment Method</Label>
               <Textarea
-                id="assessment"
+                id="assessment_method"
+                name="assessment_method"
                 placeholder="Describe how participants will be assessed"
                 className="min-h-[100px]"
+                value={formData.assessment_method}
+                onChange={handleInputChange}
               />
             </div>
 
             <div className="flex items-center space-x-2">
-              <Checkbox id="certification" />
-              <Label htmlFor="certification">Offers certification upon completion</Label>
+              <Checkbox id="offers_certification" name="offers_certification" checked={formData.offers_certification} onCheckedChange={handleCheckboxChange("offers_certification")} />
+              <Label htmlFor="offers_certification">Offers certification upon completion</Label>
             </div>
 
             <div className="flex items-center space-x-2">
-              <Checkbox id="mandatory" />
-              <Label htmlFor="mandatory">Mandatory training for specific roles</Label>
+              <Checkbox id="is_mandatory" name="is_mandatory" checked={formData.is_mandatory} onCheckedChange={handleCheckboxChange("is_mandatory")} />
+              <Label htmlFor="is_mandatory">Mandatory training for specific roles</Label>
             </div>
           </CardContent>
           <CardFooter className="flex justify-between">

@@ -14,11 +14,35 @@ import { Loader2, ArrowLeft } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { submitPerformanceReview } from "@/lib/supabase-functions" // Import the function
+
+interface ReviewFormData {
+  employee_id: string | null
+  review_period: string
+  review_date: string
+  reviewer_id: string | null
+  achievements: string
+  areas_improvement: string
+  goals: string
+  training_needs: string
+  overall_comments: string
+}
 
 export default function NewPerformanceReviewPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [formData, setFormData] = useState<ReviewFormData>({
+    employee_id: null,
+    review_period: "",
+    review_date: "",
+    reviewer_id: null,
+    achievements: "",
+    areas_improvement: "",
+    goals: "",
+    training_needs: "",
+    overall_comments: "",
+  })
 
   const [ratings, setRatings] = useState({
     productivity: 3,
@@ -31,26 +55,89 @@ export default function NewPerformanceReviewPage() {
     adaptability: 3,
   })
 
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = event.target
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }))
+  }
+
+  const handleSelectChange = (name: keyof ReviewFormData) => (value: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value, // Assuming value is the ID for employee/reviewer
+    }))
+  }
+
   const handleRatingChange = (category: keyof typeof ratings, value: number[]) => {
     setRatings((prev) => ({
       ...prev,
       [category]: value[0],
     }))
   }
+  // TODO: Fetch actual employees and reviewers for Select dropdowns
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setStatus("loading")
 
-    // Simulate API call
-    setTimeout(() => {
-      setStatus("success")
+    console.log("Submitting Performance Review:", { ...formData, ratings })
+
+    try {
+      // Calculate overall rating (simple average)
+      const ratingValues = Object.values(ratings)
+      const overallRating = ratingValues.reduce((sum, val) => sum + val, 0) / ratingValues.length
+
+      // Prepare payload for Supabase
+      const payload = {
+        employee_id: formData.employee_id,
+        reviewer_id: formData.reviewer_id,
+        review_date: formData.review_date,
+        review_period: formData.review_period, // Assuming schema has this, otherwise add to kpis
+        kpis: { // Store ratings and comments in JSONB
+          ratings: ratings,
+          achievements: formData.achievements,
+          areas_for_improvement: formData.areas_improvement,
+          goals_for_next_period: formData.goals,
+          overall_comments: formData.overall_comments,
+        },
+        rating: parseFloat(overallRating.toFixed(1)), // Store calculated overall rating
+        training_recommendations: formData.training_needs ? formData.training_needs.split('\n') : [], // Split training needs into array
+        // promotion_eligibility: false, // Add if needed
+      }
+
+      // Validate required fields
+      if (!payload.employee_id || !payload.reviewer_id || !payload.review_date || !payload.review_period) {
+         throw new Error("Please fill in all required fields (Employee, Reviewer, Date, Period).")
+      }
+
+
+      const result = await submitPerformanceReview(payload)
+
+      if (result) {
+        setStatus("success")
+        toast({
+          title: "Performance review submitted",
+          description: "The performance review has been submitted successfully.",
+        })
+        router.push("/performance")
+      } else {
+        throw new Error("Failed to submit performance review to Supabase.")
+      }
+    } catch (error) {
+      console.error("Error submitting performance review:", error)
+      setStatus("error")
       toast({
-        title: "Performance review submitted",
-        description: "The performance review has been submitted successfully.",
+        title: "Error",
+        description: `There was an error submitting the review: ${error instanceof Error ? error.message : "Unknown error"}`,
+        variant: "destructive",
       })
-      router.push("/performance")
-    }, 1500)
+    } finally {
+      if (status === "success" || status === "error") {
+        setStatus("idle")
+      }
+    }
   }
 
   return (
@@ -70,22 +157,23 @@ export default function NewPerformanceReviewPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="employee">Employee</Label>
-                <Select required>
+                <Select required name="employee_id" value={formData.employee_id || ""} onValueChange={handleSelectChange("employee_id")}>
                   <SelectTrigger id="employee">
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="emp1">John Doe</SelectItem>
-                    <SelectItem value="emp2">Jane Smith</SelectItem>
-                    <SelectItem value="emp3">Robert Johnson</SelectItem>
-                    <SelectItem value="emp4">Emily Davis</SelectItem>
+                    {/* TODO: Replace with dynamic employee list */}
+                    <SelectItem value="uuid-john-doe">John Doe</SelectItem>
+                    <SelectItem value="uuid-jane-smith">Jane Smith</SelectItem>
+                    <SelectItem value="uuid-robert-johnson">Robert Johnson</SelectItem>
+                    <SelectItem value="uuid-emily-davis">Emily Davis</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="review-period">Review Period</Label>
-                <Select required>
+                <Select required name="review_period" value={formData.review_period} onValueChange={handleSelectChange("review_period")}>
                   <SelectTrigger id="review-period">
                     <SelectValue placeholder="Select period" />
                   </SelectTrigger>
@@ -101,19 +189,20 @@ export default function NewPerformanceReviewPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="review-date">Review Date</Label>
-                <Input id="review-date" type="date" required />
+                <Input id="review_date" name="review_date" type="date" required value={formData.review_date} onChange={handleInputChange} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="reviewer">Reviewer</Label>
-                <Select required>
+                <Select required name="reviewer_id" value={formData.reviewer_id || ""} onValueChange={handleSelectChange("reviewer_id")}>
                   <SelectTrigger id="reviewer">
                     <SelectValue placeholder="Select reviewer" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="mgr1">Michael Wilson (Manager)</SelectItem>
-                    <SelectItem value="mgr2">Sarah Thompson (Director)</SelectItem>
-                    <SelectItem value="mgr3">David Brown (Team Lead)</SelectItem>
+                    {/* TODO: Replace with dynamic reviewer list */}
+                    <SelectItem value="uuid-michael-wilson">Michael Wilson (Manager)</SelectItem>
+                    <SelectItem value="uuid-sarah-thompson">Sarah Thompson (Director)</SelectItem>
+                    <SelectItem value="uuid-david-brown">David Brown (Team Lead)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -250,19 +339,25 @@ export default function NewPerformanceReviewPage() {
               <Label htmlFor="achievements">Key Achievements</Label>
               <Textarea
                 id="achievements"
+                name="achievements"
                 placeholder="List major accomplishments during this review period"
                 className="min-h-[100px]"
                 required
+                value={formData.achievements}
+                onChange={handleInputChange}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="areas-improvement">Areas for Improvement</Label>
               <Textarea
-                id="areas-improvement"
+                id="areas_improvement"
+                name="areas_improvement"
                 placeholder="Identify areas where the employee could improve"
                 className="min-h-[100px]"
                 required
+                value={formData.areas_improvement}
+                onChange={handleInputChange}
               />
             </div>
 
@@ -270,28 +365,37 @@ export default function NewPerformanceReviewPage() {
               <Label htmlFor="goals">Goals for Next Period</Label>
               <Textarea
                 id="goals"
+                name="goals"
                 placeholder="Set specific, measurable goals for the next review period"
                 className="min-h-[100px]"
                 required
+                value={formData.goals}
+                onChange={handleInputChange}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="training-needs">Training & Development Needs</Label>
               <Textarea
-                id="training-needs"
-                placeholder="Recommend training or development opportunities"
+                id="training_needs"
+                name="training_needs"
+                placeholder="Recommend training or development opportunities (one per line)"
                 className="min-h-[100px]"
+                value={formData.training_needs}
+                onChange={handleInputChange}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="overall-comments">Overall Comments</Label>
               <Textarea
-                id="overall-comments"
+                id="overall_comments"
+                name="overall_comments"
                 placeholder="Provide a summary of the employee's overall performance"
                 className="min-h-[100px]"
                 required
+                value={formData.overall_comments}
+                onChange={handleInputChange}
               />
             </div>
           </CardContent>

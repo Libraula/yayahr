@@ -14,25 +14,98 @@ import { Loader2, ArrowLeft } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { submitStatutoryReport } from "@/lib/supabase-functions" // Import the function
+
+interface ComplianceReportData {
+  report_type: string
+  report_date: string
+  report_title: string
+  description: string
+  severity: string
+  location: string
+  people_involved: string
+  action_taken: string
+  anonymous: boolean
+}
 
 export default function NewComplianceReportPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+  const [reportData, setReportData] = useState<ComplianceReportData>({
+    report_type: "",
+    report_date: "",
+    report_title: "",
+    description: "",
+    severity: "medium", // Default severity
+    location: "",
+    people_involved: "",
+    action_taken: "",
+    anonymous: false, // Default anonymous to false
+  })
 
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = event.target
+    setReportData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }))
+  }
+
+  const handleSelectChange = (name: keyof ComplianceReportData) => (value: string) => {
+    setReportData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }))
+  }
+
+  const handleRadioChange = (name: keyof ComplianceReportData) => (value: string) => {
+    setReportData((prevData) => ({
+      ...prevData,
+      [name]: name === 'anonymous' ? value === 'yes' : value, // Convert anonymous 'yes'/'no' to boolean
+    }))
+  }
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setStatus("loading")
 
-    // Simulate API call
-    setTimeout(() => {
-      setStatus("success")
+    console.log("Submitting Compliance Report:", reportData)
+
+    try {
+      // Prepare payload - ensure data types match expected schema if necessary
+      const payload = {
+        ...reportData,
+        // Add user_id if needed and available from auth context
+        // submitted_by: auth.user?.id, // Example
+        submission_date: new Date().toISOString(), // Add submission timestamp
+        status: 'submitted', // Initial status
+      }
+
+      const result = await submitStatutoryReport(payload) // Use the imported function
+
+      if (result) {
+        setStatus("success")
+        toast({
+          title: "Compliance report submitted",
+          description: "Your compliance report has been submitted successfully.",
+        })
+        router.push("/compliance")
+      } else {
+        throw new Error("Failed to submit compliance report to Supabase.")
+      }
+    } catch (error) {
+      console.error("Error submitting compliance report:", error)
+      setStatus("error")
       toast({
-        title: "Compliance report submitted",
-        description: "Your compliance report has been submitted successfully.",
+        title: "Error",
+        description: `There was an error submitting the report: ${error instanceof Error ? error.message : "Unknown error"}`,
+        variant: "destructive",
       })
-      router.push("/compliance")
-    }, 1500)
+    } finally {
+      if (status === "success" || status === "error") {
+        setStatus("idle")
+      }
+    }
   }
 
   return (
@@ -52,7 +125,7 @@ export default function NewComplianceReportPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="report-type">Report Type</Label>
-                <Select required>
+                <Select required name="report_type" value={reportData.report_type} onValueChange={handleSelectChange("report_type")}>
                   <SelectTrigger id="report-type">
                     <SelectValue placeholder="Select report type" />
                   </SelectTrigger>
@@ -69,12 +142,12 @@ export default function NewComplianceReportPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="report-date">Date of Incident/Issue</Label>
-                <Input id="report-date" type="date" required />
+                <Input id="report_date" name="report_date" type="date" required value={reportData.report_date} onChange={handleInputChange} />
               </div>
 
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="report-title">Report Title</Label>
-                <Input id="report-title" placeholder="Brief title describing the issue" required />
+                <Input id="report_title" name="report_title" placeholder="Brief title describing the issue" required value={reportData.report_title} onChange={handleInputChange} />
               </div>
             </div>
 
@@ -82,15 +155,18 @@ export default function NewComplianceReportPage() {
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
+                name="description"
                 placeholder="Provide a detailed description of the incident or compliance issue"
                 className="min-h-[150px]"
                 required
+                value={reportData.description}
+                onChange={handleInputChange}
               />
             </div>
 
             <div className="space-y-2">
               <Label>Severity Level</Label>
-              <RadioGroup defaultValue="medium">
+              <RadioGroup name="severity" value={reportData.severity} onValueChange={handleRadioChange("severity")}>
                 <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-4">
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="low" id="severity-low" />
@@ -114,30 +190,36 @@ export default function NewComplianceReportPage() {
 
             <div className="space-y-2">
               <Label htmlFor="location">Location</Label>
-              <Input id="location" placeholder="Where did this incident occur?" required />
+              <Input id="location" name="location" placeholder="Where did this incident occur?" required value={reportData.location} onChange={handleInputChange} />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="people-involved">People Involved</Label>
               <Textarea
-                id="people-involved"
+                id="people_involved"
+                name="people_involved"
                 placeholder="List names and roles of people involved or witnesses"
                 className="min-h-[100px]"
+                value={reportData.people_involved}
+                onChange={handleInputChange}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="action-taken">Action Already Taken</Label>
               <Textarea
-                id="action-taken"
+                id="action_taken"
+                name="action_taken"
                 placeholder="Describe any actions already taken to address this issue"
                 className="min-h-[100px]"
+                value={reportData.action_taken}
+                onChange={handleInputChange}
               />
             </div>
 
             <div className="space-y-2">
               <Label>Anonymous Report</Label>
-              <RadioGroup defaultValue="no">
+              <RadioGroup name="anonymous" value={reportData.anonymous ? 'yes' : 'no'} onValueChange={handleRadioChange("anonymous")}>
                 <div className="flex space-x-4">
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="yes" id="anonymous-yes" />

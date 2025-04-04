@@ -1,15 +1,55 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+import { createClient as createSupabaseClient, SupabaseClient } from "@supabase/supabase-js"
 
-// Use environment variables directly without fallbacks since they're now available
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+// Get environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Create client with the environment variables
-export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey)
+// --- Client-side Supabase Client ---
+let supabaseInstance: SupabaseClient;
 
-// Create admin client for server-side operations that need elevated privileges
-export const supabaseAdmin = createSupabaseClient(supabaseUrl, supabaseServiceKey)
+if (!supabaseUrl) {
+  console.error("FATAL ERROR: NEXT_PUBLIC_SUPABASE_URL environment variable is not set.")
+  throw new Error("Supabase URL is not configured. Please check your environment variables.");
+} else if (!supabaseAnonKey) {
+  console.error("FATAL ERROR: NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable is not set.")
+   throw new Error("Supabase Anon Key is not configured. Please check your environment variables.");
+} else {
+  // Initialize client only if keys are present
+  supabaseInstance = createSupabaseClient(supabaseUrl, supabaseAnonKey)
+}
+
+// Export the initialized client instance
+export const supabase = supabaseInstance;
+
+
+// --- Admin Supabase Client (Server-Side Only) ---
+// Avoid accessing SUPABASE_SERVICE_ROLE_KEY directly in top-level scope
+// to prevent it from being bundled/accessed client-side.
+let supabaseAdminInstance: SupabaseClient | null = null;
+
+// Function to safely get the admin client instance (call this only server-side)
+export function getSupabaseAdmin(): SupabaseClient {
+  if (supabaseAdminInstance) {
+    return supabaseAdminInstance;
+  }
+
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl) {
+    // This check might be redundant if the client instance check already passed, but good practice.
+    throw new Error("Admin Client Error: NEXT_PUBLIC_SUPABASE_URL environment variable is not set.");
+  }
+  if (!supabaseServiceKey) {
+     throw new Error("Admin Client Error: SUPABASE_SERVICE_ROLE_KEY environment variable is not set. This key should only be available on the server.");
+  }
+
+  // Initialize admin client only when first requested server-side
+  supabaseAdminInstance = createSupabaseClient(supabaseUrl, supabaseServiceKey);
+  return supabaseAdminInstance;
+}
+
+// Re-export createClient function if it's used directly elsewhere (optional)
+// Removed duplicate export that was added previously
 
 // Define types based on the new schema
 export type Department = {
@@ -361,6 +401,18 @@ export async function getDashboardStats(): Promise<{
   }
 }
 
+// Define a more specific type for the employee data fetched in getRecentActivities
+// This type was already added in the previous step, ensuring it's here.
+type RecentEmployeeActivity = {
+  id: string;
+  full_name: string | null;
+  employee_id: string | null;
+  job_title: string | null;
+  departments: { name: string }[] | null; // Adjust type: Supabase might return an array for joins
+  employment_type: string | null;
+  created_at: string;
+};
+
 // Update the getRecentActivities function to match the actual database schema
 export async function getRecentActivities(): Promise<any[]> {
   try {
@@ -375,11 +427,17 @@ export async function getRecentActivities(): Promise<any[]> {
         .limit(5)
 
       if (recentEmployees && recentEmployees.length > 0) {
-        recentEmployees.forEach((emp) => {
+        // Cast the fetched data to the specific type
+        (recentEmployees as RecentEmployeeActivity[]).forEach((emp) => {
+          // Safely access the first department's name if the array exists and has elements
+          const departmentName = (emp.departments && emp.departments.length > 0)
+            ? emp.departments[0].name
+            : "the company";
+
           activities.push({
             type: "employee_added",
             title: "New Employee Added",
-            description: `${emp.full_name || emp.employee_id || "Employee"} was added as ${emp.job_title || emp.employment_type || "employee"} in ${emp.departments?.name || "the company"}`,
+            description: `${emp.full_name || emp.employee_id || "Employee"} was added as ${emp.job_title || emp.employment_type || "employee"} in ${departmentName}`,
             time: emp.created_at,
             id: `emp_${emp.id}`,
           })

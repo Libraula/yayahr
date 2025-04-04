@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState } from "react" // Remove useEffect
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/components/ui/use-toast"
+import { createEmployeeCore, createEmployeeContact } from "@/lib/supabase-functions" // Remove fetchDepartments and Department type
 
 interface EmployeeData {
   first_name: string
@@ -19,7 +20,7 @@ interface EmployeeData {
   date_of_birth: string
   gender: string
   employee_id: string
-  department: string
+  department_name: string // Store department name for hardcoded list
   job_title: string
   employment_type: string
   employment_status: string
@@ -40,7 +41,7 @@ export default function AddEmployeePage() {
     date_of_birth: "",
     gender: "",
     employee_id: "",
-    department: "",
+    department_name: "", // Initialize department name state
     job_title: "",
     employment_type: "",
     employment_status: "",
@@ -49,6 +50,7 @@ export default function AddEmployeePage() {
     tin_number: "",
     nssf_number: "",
   })
+  // Removed state and useEffect for dynamic department fetching
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
@@ -72,24 +74,67 @@ export default function AddEmployeePage() {
     console.log("Submitting Employee Data:", employeeData)
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Prepare data for Supabase, combining names and mapping fields
+      // --- Step 1: Create Core Employee Record ---
+      const corePayload = {
+        department_id: null, // Send null as we don't have the ID for hardcoded options
+        national_id: employeeData.national_id,
+        tin_number: employeeData.tin_number,
+        nssf_number: employeeData.nssf_number,
+        employee_id: employeeData.employee_id, // The textual ID like EMP-001
+        employment_type: employeeData.employment_type,
+        employment_status: employeeData.employment_status || 'probation',
+        // job_grade_id: employeeData.job_grade_id, // Add if job grade is added to form
+      }
 
+      const newEmployeeCore = await createEmployeeCore(corePayload)
+
+      if (!newEmployeeCore || !newEmployeeCore.id) {
+        // Error is thrown from createEmployeeCore, but double-check here
+        throw new Error("Failed to create core employee record or retrieve its ID.")
+      }
+
+      const newEmployeeUUID = newEmployeeCore.id // Get the generated UUID
+
+      // --- Step 2: Create Employee Contact Record ---
+      const contactPayload = {
+        employee_id: newEmployeeUUID, // Link to the core record
+        contact_type: 'personal', // Default to personal contact
+        full_name: `${employeeData.first_name} ${employeeData.last_name}`,
+        phone_number: employeeData.phone,
+        email: employeeData.email || null,
+        // Add other fields like relationship if needed/collected
+      }
+
+      const newContact = await createEmployeeContact(contactPayload)
+
+      if (!newContact) {
+          // Ideally, you might want to implement logic to delete the core employee
+          // record if contact creation fails (transactional behavior).
+          // For now, just throw an error.
+          throw new Error("Core employee created, but failed to create contact details.")
+      }
+
+      // --- Success ---
       setStatus("success")
       toast({
         title: "Employee added",
-        description: "The employee has been added successfully.",
+        description: "The employee and their contact details have been added successfully.",
       })
       router.push("/employees")
+
     } catch (error) {
       console.error("Error adding employee:", error)
       setStatus("error")
       toast({
         title: "Error",
-        description: "There was an error adding the employee. Please try again.",
+        description: `There was an error adding the employee: ${error instanceof Error ? error.message : "Unknown error"}`,
         variant: "destructive",
       })
     } finally {
-      if (status !== 'loading') setStatus("idle");
+       if (status === "success" || status === "error") {
+         setStatus("idle");
+       }
     }
   }
 
@@ -213,19 +258,18 @@ export default function AddEmployeePage() {
                   <div className="space-y-2">
                     <Label htmlFor="department">Department</Label>
                     <Select
-                      name="department"
-                      value={employeeData.department}
-                      onValueChange={handleSelectChange("department")}
+                      name="department_name" // Use department_name for state key
+                      value={employeeData.department_name}
+                      onValueChange={handleSelectChange("department_name")} // Update department_name state
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select department" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="engineering">Engineering</SelectItem>
-                        <SelectItem value="marketing">Marketing</SelectItem>
-                        <SelectItem value="finance">Finance</SelectItem>
-                        <SelectItem value="hr">Human Resources</SelectItem>
-                        <SelectItem value="operations">Operations</SelectItem>
+                        {/* Hardcoded options */}
+                        <SelectItem value="Tailoring">Tailoring</SelectItem>
+                        <SelectItem value="Shopkeeping">Shopkeeping</SelectItem>
+                        <SelectItem value="Distribution">Distribution</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
