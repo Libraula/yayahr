@@ -92,53 +92,45 @@ export default function Sidebar() {
     { name: "Dashboard", path: "/", icon: Home },
     { name: "Employee Management", path: "/employees", icon: Users },
     { name: "Payroll Management", path: "/payroll", icon: CreditCard },
-    {
+    { // Time & Attendance - Removed subRoutes
       name: "Time & Attendance",
       path: "/attendance",
       icon: Clock,
-      subRoutes: [{ name: "Clock In/Out", path: "/attendance/clock" }],
     },
-    {
+    { // Leave Management - Removed subRoutes
       name: "Leave Management",
       path: "/leave",
       icon: Calendar,
-      subRoutes: [{ name: "Request Leave", path: "/leave/request" }],
     },
-    {
+    { // Performance - Removed subRoutes
       name: "Performance",
       path: "/performance",
       icon: BarChart,
-      subRoutes: [{ name: "New Review", path: "/performance/review/new" }],
     },
-    {
+    { // Recruitment - Removed subRoutes
       name: "Recruitment",
       path: "/recruitment",
       icon: UserPlus,
-      subRoutes: [{ name: "Post New Job", path: "/recruitment/job/new" }],
     },
-    {
+    { // Compliance & Reports - Removed subRoutes
       name: "Compliance & Reports",
       path: "/compliance",
       icon: FileText,
-      subRoutes: [{ name: "Generate Report", path: "/compliance/report/new" }],
     },
-    {
+    { // Training & Development - Removed subRoutes
       name: "Training & Development",
       path: "/training",
       icon: GraduationCap,
-      subRoutes: [{ name: "New Training", path: "/training/program/new" }],
     },
-    {
+    { // Benefits & Compensation - Removed subRoutes
       name: "Benefits & Compensation",
       path: "/benefits",
       icon: Heart,
-      subRoutes: [{ name: "Add Benefit", path: "/benefits/add" }],
     },
-    {
+    { // Reports & Analytics - Removed subRoutes
       name: "Reports & Analytics",
       path: "/analytics",
       icon: PieChart,
-      subRoutes: [{ name: "Generate Report", path: "/analytics/reports/new" }],
     },
   ]
 
@@ -197,26 +189,7 @@ export default function Sidebar() {
                       {(!isCollapsed || isMobile) && <span className="truncate">{route.name}</span>}
                     </Link>
 
-                    {/* Sub-routes */}
-                    {(!isCollapsed || isMobile) && route.subRoutes && route.subRoutes.length > 0 && (
-                      <div className="pl-10 space-y-1">
-                        {route.subRoutes.map((subRoute) => (
-                          <Link
-                            key={subRoute.path}
-                            href={subRoute.path}
-                            onClick={() => isMobile && setIsOpen(false)}
-                            className={cn(
-                              "flex items-center px-3 py-1 text-sm rounded-md transition-colors",
-                              pathname === subRoute.path
-                                ? "bg-primary/10 text-primary font-medium"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                            )}
-                          >
-                            <span className="truncate">{subRoute.name}</span>
-                          </Link>
-                        ))}
-                      </div>
-                    )}
+                    {/* Sub-routes rendering removed */}
                   </div>
                 )
               })}
