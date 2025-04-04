@@ -22,71 +22,91 @@ import {
 } from "recharts"
 import { Download, FileText, Filter } from "lucide-react"
 
+type DepartmentData = { name: string; value: number }
+type GenderData = { name: string; value: number }
+type EmploymentData = { name: string; value: number }
+type LeaveData = { name: string; value: number }
+type SalaryData = { range: string; count: number }
+type TurnoverData = { month: string; hires: number; exits: number; turnoverRate: number }
+
 export default function ReportsPage() {
-  const [isClient, setIsClient] = useState(false)
-  const [departmentData, setDepartmentData] = useState([])
-  const [genderData, setGenderData] = useState([])
-  const [employmentTypeData, setEmploymentTypeData] = useState([])
-  const [leaveData, setLeaveData] = useState([])
-  const [salaryRangeData, setSalaryRangeData] = useState([])
-  const [employeeTurnoverData, setEmployeeTurnoverData] = useState([])
+  const [isClient, setIsClient] = useState<boolean>(false)
+  const [departmentData, setDepartmentData] = useState<DepartmentData[]>([])
+  const [genderData, setGenderData] = useState<GenderData[]>([])
+  const [employmentTypeData, setEmploymentTypeData] = useState<EmploymentData[]>([])
+  const [leaveData, setLeaveData] = useState<LeaveData[]>([])
+  const [salaryRangeData, setSalaryRangeData] = useState<SalaryData[]>([])
+  const [employeeTurnoverData, setEmployeeTurnoverData] = useState<TurnoverData[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setIsClient(true)
 
-    // Sample data for charts
-    setDepartmentData([
-      { name: "Engineering", value: 12 },
-      { name: "Product", value: 8 },
-      { name: "Design", value: 5 },
-      { name: "Marketing", value: 4 },
-      { name: "Sales", value: 6 },
-      { name: "HR", value: 3 },
-      { name: "Finance", value: 4 },
-    ])
+    try {
+      // Sample data for charts
+      setDepartmentData([
+        { name: "Engineering", value: 12 },
+        { name: "Product", value: 8 },
+        { name: "Design", value: 5 },
+        { name: "Marketing", value: 4 },
+        { name: "Sales", value: 6 },
+        { name: "HR", value: 3 },
+        { name: "Finance", value: 4 },
+      ])
 
-    setGenderData([
-      { name: "Male", value: 22 },
-      { name: "Female", value: 18 },
-      { name: "Other", value: 2 },
-    ])
+      setGenderData([
+        { name: "Male", value: 22 },
+        { name: "Female", value: 18 },
+        { name: "Other", value: 2 },
+      ])
 
-    setEmploymentTypeData([
-      { name: "Full-time", value: 32 },
-      { name: "Part-time", value: 5 },
-      { name: "Contract", value: 4 },
-      { name: "Intern", value: 1 },
-    ])
+      setEmploymentTypeData([
+        { name: "Full-time", value: 32 },
+        { name: "Part-time", value: 5 },
+        { name: "Contract", value: 4 },
+        { name: "Intern", value: 1 },
+      ])
 
-    setLeaveData([
-      { name: "Annual Leave", value: 45 },
-      { name: "Sick Leave", value: 22 },
-      { name: "Maternity/Paternity", value: 5 },
-      { name: "Unpaid Leave", value: 8 },
-    ])
+      setLeaveData([
+        { name: "Annual Leave", value: 45 },
+        { name: "Sick Leave", value: 22 },
+        { name: "Maternity/Paternity", value: 5 },
+        { name: "Unpaid Leave", value: 8 },
+      ])
 
-    setSalaryRangeData([
-      { range: "Below 500K", count: 2 },
-      { range: "500K-1M", count: 5 },
-      { range: "1M-2M", count: 8 },
-      { range: "2M-3M", count: 6 },
-      { range: "3M-5M", count: 3 },
-      { range: "Above 5M", count: 1 },
-    ])
+      setSalaryRangeData([
+        { range: "Below 500K", count: 2 },
+        { range: "500K-1M", count: 5 },
+        { range: "1M-2M", count: 8 },
+        { range: "2M-3M", count: 6 },
+        { range: "3M-5M", count: 3 },
+        { range: "Above 5M", count: 1 },
+      ])
 
-    setEmployeeTurnoverData([
-      { month: "Jan", hires: 3, exits: 1, turnoverRate: 2.5 },
-      { month: "Feb", hires: 2, exits: 1, turnoverRate: 2.4 },
-      { month: "Mar", hires: 4, exits: 2, turnoverRate: 4.8 },
-      { month: "Apr", hires: 3, exits: 0, turnoverRate: 0 },
-      { month: "May", hires: 2, exits: 1, turnoverRate: 2.3 },
-      { month: "Jun", hires: 5, exits: 2, turnoverRate: 4.5 },
-    ])
+      setEmployeeTurnoverData([
+        { month: "Jan", hires: 3, exits: 1, turnoverRate: 2.5 },
+        { month: "Feb", hires: 2, exits: 1, turnoverRate: 2.4 },
+        { month: "Mar", hires: 4, exits: 2, turnoverRate: 4.8 },
+        { month: "Apr", hires: 3, exits: 0, turnoverRate: 0 },
+        { month: "May", hires: 2, exits: 1, turnoverRate: 2.3 },
+        { month: "Jun", hires: 5, exits: 2, turnoverRate: 4.5 },
+      ])
+    } catch (error) {
+      setError("Failed to load data")
+    }
   }, [])
 
   // Define colors for charts
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D", "#FFC658", "#8DD1E1"]
   const GENDER_COLORS = ["#0088FE", "#FF8042", "#FFBB28"]
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-lg text-red-500">{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -351,7 +371,13 @@ export default function ReportsPage() {
   )
 }
 
-function ReportCard({ title, description, count }) {
+interface ReportCardProps {
+  title: string
+  description: string
+  count: number
+}
+
+function ReportCard({ title, description, count }: ReportCardProps) {
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-0">
@@ -359,27 +385,17 @@ function ReportCard({ title, description, count }) {
           <div className="bg-muted p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="rounded-full bg-background p-2">
-                <FileText className="h-5 w-5" />
+                {/* Icon would go here */}
               </div>
-              <h3 className="font-medium">{title}</h3>
+              <div>
+                <p className="font-medium">{title}</p>
+                <p className="text-sm text-muted-foreground">{description}</p>
+              </div>
             </div>
-            <div className="bg-primary text-primary-foreground text-xs rounded-full px-2 py-1">{count} records</div>
-          </div>
-          <div className="p-4 flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">{description}</p>
-            <div className="flex items-center justify-between">
-              <Button variant="outline" size="sm">
-                <Download className="mr-2 h-4 w-4" />
-                Download
-              </Button>
-              <Button variant="ghost" size="sm">
-                Generate
-              </Button>
-            </div>
+            <p className="text-2xl font-bold">{count}</p>
           </div>
         </div>
       </CardContent>
     </Card>
   )
 }
-
